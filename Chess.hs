@@ -14,6 +14,7 @@ module Chess( MoveError(..)
             , check
             , mate
             , stalemate
+	    , forcedCapture
             ) where
 
 import           Control.Monad.Instances
@@ -25,8 +26,7 @@ import           Data.Maybe
 
 data MoveError = WrongTurn -- ^ It's not your turn
                | NoPiece -- ^ There is no piece at the "from" position
-               | IsCheck -- ^ Your king is checked and this move doesn't solve that
-               | CausesCheck -- ^ After this move your king would be checked
+	       | CaptureNotTaken -- ^ A capture is possible but not taken
                | InvalidMove -- ^ This is not how that piece works
                | OverPiece -- ^ You cannot move over other pieces
                | CapturesOwn -- ^ This move captures one of your own pieces
@@ -144,9 +144,7 @@ moveAllowed x y x2 y2 brd
   | pawnIncorrectCapt = Left OverPiece
   | otherwise = case validMove x y x2 y2 brd of
     Nothing -> Left InvalidMove
-    Just mv -> if check owncolor $ moveNoCheck x y x2 y2 mv brd
-               then Left CausesCheck
-               else Right mv
+    Just mv -> Right mv
     where
       pieceInPath = case ownpiece of
         Piece _ Knight -> False
@@ -182,6 +180,14 @@ swapTurn brd = brd { turn = otherColor $ turn brd }
 putPiece x y pc brd = brd { board = (board brd) // [((x,y),pc)]}
 removePiece x y = putPiece x y Nothing
 castcase clr c = if clr == White then map toUpper c else map toLower c
+
+-- |Which pieces can a given player capture?
+forcedCapture :: Color -> Board -> [(Int, Int)]
+forcedCapture clr brd = filter canCapture otherPieces
+    where
+	pieces = piecesOf clr brd 
+	otherPieces = piecesOf (otherColor clr) brd
+	canCapture (x, y) = any (\(x2, y2) -> okMove x2 y2 x y brd) pieces
 
 -- |Is the player of the given colour check?
 check :: Color -> Board -> Bool
