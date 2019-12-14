@@ -10,11 +10,15 @@ module Chess( MoveError(..)
             , pieceAt
             , pieceAtStr
             , move
+            , move'
+            , piecesOf
             , moveSAN
             , check
             , mate
             , stalemate
 	    , forcedCapture
+            , validMove
+            , moveAllowed
             ) where
 
 import           Control.Monad.Instances
