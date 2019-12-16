@@ -30,7 +30,7 @@ import           Data.Maybe
 
 data MoveError = WrongTurn -- ^ It's not your turn
                | NoPiece -- ^ There is no piece at the "from" position
-	       | CaptureNotTaken -- ^ A capture is possible but not taken
+	       | CaptureRequired -- ^ A capture is possible but not taken
                | InvalidMove -- ^ This is not how that piece works
                | OverPiece -- ^ You cannot move over other pieces
                | CapturesOwn -- ^ This move captures one of your own pieces
@@ -145,6 +145,7 @@ moveAllowed x y x2 y2 brd
   | owncolor /= turn brd = Left WrongTurn
   | pieceAtDest = Left CapturesOwn
   | pieceInPath = Left OverPiece
+  | notCapture  = Left CaptureRequired
   | pawnIncorrectCapt = Left OverPiece
   | otherwise = case validMove x y x2 y2 brd of
     Nothing -> Left InvalidMove
@@ -161,6 +162,9 @@ moveAllowed x y x2 y2 brd
       pieceAtDest = case pieceAt x2 y2 brd of
         Just (Piece clr _) -> clr == owncolor
         _ -> False
+      notCapture = case pieceAt x2 y2 brd of
+        Just (Piece clr _) -> False
+        _ -> not . null $ forcedCapture owncolor brd
       pawnIncorrectCapt = piece ownpiece == Pawn && x == x2 && (isJust $ pieceAt x2 y2 brd)
       owncolor = clr ownpiece
       ownpiece = fromJust $ pieceAt x y brd
