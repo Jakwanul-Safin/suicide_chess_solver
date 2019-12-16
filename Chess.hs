@@ -13,15 +13,12 @@ module Chess( MoveError(..)
             , move'
             , piecesOf
             , moveSAN
-            , check
-            , mate
             , stalemate
-	    , forcedCapture
+            , forcedCapture
             , validMove
             , moveAllowed
             ) where
 
-import           Control.Monad.Instances
 import           Data.Array
 import           Data.Char
 import qualified Data.List as L
@@ -30,7 +27,7 @@ import           Data.Maybe
 
 data MoveError = WrongTurn -- ^ It's not your turn
                | NoPiece -- ^ There is no piece at the "from" position
-	       | CaptureRequired -- ^ A capture is possible but not taken
+               | CaptureRequired -- ^ A capture is possible but not taken
                | InvalidMove -- ^ This is not how that piece works
                | OverPiece -- ^ You cannot move over other pieces
                | CapturesOwn -- ^ This move captures one of your own pieces
@@ -38,9 +35,6 @@ data MoveError = WrongTurn -- ^ It's not your turn
                deriving (Eq, Show)
 
 data MoveType = RegularMove
-              | KingMove -- ^ A move with the king
-              | KingRookMove -- ^ A move with the king-side rook
-              | QueenRookMove -- ^ A move with the queen-side rook
               | DoublePawnMove -- ^ A move where a pawn makes two steps
               | EnPassant -- ^ En-passant capture
               deriving (Eq, Show)
@@ -62,7 +56,6 @@ data Piece = Piece { clr :: Color
                    } deriving (Eq)
 
 data Board = Board { turn :: Color
-                   , castlingAvail :: String
                    , enpassant :: Maybe (Int, Int)
                    , board :: Array (Int, Int) (Maybe Piece)
                    } deriving (Eq)
@@ -77,8 +70,6 @@ instance Read Piece where
 
 instance Show Piece where
   show (Piece c t) = if c == White then [toUpper $ pieceName t] else [pieceName t]
-
-remCastle rem brd = brd { castlingAvail = (castlingAvail brd) L.\\ rem }
 
 instance Show Board where
   show b = unlines [ [ tos (board b ! (x,y)) | x<-[0..7] ] | y<-[7,6..0]] where
@@ -107,24 +98,17 @@ piecesOf clr brd = [ (x,y) | (x,y)<-(indices $ board brd), apprPiece $ pieceAt x
   apprPiece Nothing = False
   apprPiece (Just (Piece c p)) = c == clr
 
-kingCoords clr brd = listToMaybe $ pieceCoords clr brd King
-
 pieceCoords clr brd piece = [ i | (i, pc) <- (assocs $ board brd), pc == Just (Piece clr piece) ]
 
 okMove x y x2 y2 brd = not $ isLeft $ moveAllowed x y x2 y2  brd
 
-rookValid x y x2 y2 brd
-  | x == 0 && y `elem` [0,7] = QueenRookMove
-  | x == 7 && y `elem` [0,7] = KingRookMove
-  | otherwise = RegularMove
-
 justIf cond val = if cond then Just val else Nothing
 
 validMove x y x2 y2 brd = pieceAt x y brd >>= \piece -> validMove' piece where
-  validMove' (Piece _ Rook) = justIf ((x == x2 && y /= y2) || (x /= x2 && y == y2)) (rookValid x y x2 y2 brd)
+  validMove' (Piece _ Rook) = justIf ((x == x2 && y /= y2) || (x /= x2 && y == y2)) RegularMove
   validMove' (Piece _ Knight) = justIf ((abs (x-x2) `elem` [1,2]) && (abs (y-y2) `elem` ([1,2] L.\\ [abs (x-x2)]))) RegularMove
   validMove' (Piece _ Bishop) = justIf (abs (x2 - x) == abs (y2 - y)) RegularMove
-  validMove' (Piece _ King) = justIf ((abs (x-x2) <= 1) && (abs (y2 - y) <= 1)) KingMove
+  validMove' (Piece _ King) = justIf ((abs (x-x2) <= 1) && (abs (y2 - y) <= 1)) RegularMove
   validMove' (Piece _ Queen) = justIf (abs (x2 - x) == abs (y2 - y) ||
                                       ((x == x2 && y /= y2) || (x /= x2 && y == y2))) RegularMove
   validMove' (Piece White Pawn)
@@ -169,18 +153,6 @@ moveAllowed x y x2 y2 brd
       owncolor = clr ownpiece
       ownpiece = fromJust $ pieceAt x y brd
 
-castleAllowed brd side =
-  pieceAt 4 y brd == Just (Piece (turn brd) King) &&
-  all (\x -> isNothing $ pieceAt x y brd) nopc &&
-  all (\x -> not $ check (turn brd) $ moveNoCheck 4 y x y RegularMove brd) noCheck &&
-  castAvail `elem` castlingAvail brd
-    where
-      x = if side == King then 7 else 0
-      y = if turn brd == White then 0 else 7
-      nopc = if side == King then [5,6] else [1,2,3]
-      noCheck = if side == King then [5,6] else [2,3]
-      castAvail = (if turn brd == White then id else toLower) (if side == King then 'K' else 'Q')
-
 movePiece x y x2 y2 brd = removePiece x y $ putPiece x2 y2 (pieceAt x y brd) brd
 setEnpassant x y brd = brd { enpassant = Just (x,y) }
 resetEnpassant brd = brd {enpassant = Nothing }
@@ -192,53 +164,29 @@ castcase clr c = if clr == White then map toUpper c else map toLower c
 -- |Which pieces can a given player capture?
 forcedCapture :: Color -> Board -> [(Int, Int)]
 forcedCapture clr brd = filter canCapture otherPieces
-    where
-	pieces = piecesOf clr brd 
-	otherPieces = piecesOf (otherColor clr) brd
-	canCapture (x, y) = any (\(x2, y2) -> okMove x2 y2 x y brd) pieces
-
--- |Is the player of the given colour check?
-check :: Color -> Board -> Bool
-check clr brd = case kingCoords clr brd of
-  Just (kingX, kingY) -> any (\(x,y) -> okMove x y kingX kingY tmpbrd) otherPieces
-    where otherPieces = piecesOf (otherColor clr) brd
-          tmpbrd = brd {turn = otherColor clr}
-  Nothing -> False
+  where
+    pieces = piecesOf clr brd 
+    otherPieces = piecesOf (otherColor clr) brd
+    canCapture (x, y) = any (\(x2, y2) -> okMove x2 y2 x y brd) pieces
 
 -- |Can the player of the given colour make any move?
 stalemate :: Color -> Board -> Bool
-stalemate clr brd = case kingCoords clr brd of
+stalemate clr brd = False
+
+{-
+case kingCoords clr brd of
   Just (kx,ky) -> not $ any (\(x,y) -> okMove kx ky x y tmpbrd) (km kx ky)
   Nothing -> False
   where
     km kx ky = [(x,y)| x<-[kx-1,kx,kx+1], y<-[ky-1,ky,ky+1], x>=0, y>=0, x<8, y<8]
     tmpbrd = brd {turn = clr}
-
--- |Is the player with the given colour checkmate
-mate :: Color -> Board -> Bool
-mate clr brd = check clr brd && stalemate clr brd
-
-castle brd side
-  | castleAllowed brd side = Right (swapTurn $ resetEnpassant $ moveKing $ moveRook brd)
-  | otherwise = Left InvalidMove
-    where
-      y = if turn brd == White then 0 else 7
-      (rookFrom, rookTo) = if side == King then (7, 5) else (0, 3)
-      (kingFrom, kingTo) = if side == King then (4, 6) else (4, 2)
-      moveKing board = movePiece kingFrom y kingTo y board
-      moveRook board = movePiece rookFrom y rookTo y board
+-}
 
 promote x y pc clr brd = case lookup (toLower pc) pcsList of
   Just pct -> Right $ putPiece x y (Just $ Piece clr pct) brd
   Nothing -> Left InvalidMove
 
 moveNoCheck x y x2 y2 moveType brd = case moveType of
-  KingRookMove -> let Piece clr _ = fromJust $ pieceAt x y brd
-                  in moveNoCheck x y x2 y2 RegularMove (remCastle (castcase clr "k") brd)
-  QueenRookMove -> let Piece clr _ = fromJust $ pieceAt x y brd
-                   in moveNoCheck x y x2 y2 RegularMove (remCastle (castcase clr "q") brd)
-  KingMove ->  let Piece clr _ = fromJust $ pieceAt x y brd
-               in moveNoCheck x y x2 y2 RegularMove (remCastle (castcase clr "kq") brd)
   RegularMove -> swapTurn $ resetEnpassant $ movePiece x y x2 y2 brd
   DoublePawnMove -> swapTurn $ setEnpassant x2 ((y+y2) `div` 2) $ movePiece x y x2 y2 brd
   EnPassant -> swapTurn $ resetEnpassant $ movePiece x y x2 y2 $ removePiece x2 y brd
@@ -248,8 +196,6 @@ move' x y x2 y2 brd = moveAllowed x y x2 y2 brd >>= \movetype -> return (moveNoC
 -- | Perform a move on the board in coordinate notation like "e2e4", returning either the new board or an error
 move :: [Char] -> Board -> Either MoveError Board
 move mv brd
-  | mv == "O-O" = castle brd King
-  | mv == "O-O-O" = castle brd Queen
   | length mv == 5 = move (init mv) brd >>= promote x2 y2 (last mv) (turn brd)
   | length mv == 4 = move' x y x2 y2 brd
   | otherwise = Left NoParse where
