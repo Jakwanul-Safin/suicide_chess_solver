@@ -162,12 +162,14 @@ removePiece x y = putPiece x y Nothing
 castcase clr c = if clr == White then map toUpper c else map toLower c
 
 -- |Which pieces can a given player capture?
-forcedCapture :: Color -> Board -> [(Int, Int)]
-forcedCapture clr brd = filter canCapture otherPieces
-  where
-    pieces = piecesOf clr brd 
-    otherPieces = piecesOf (otherColor clr) brd
-    canCapture (x, y) = any (\(x2, y2) -> okMove x2 y2 x y brd) pieces
+
+forcedCapture :: Color -> Board -> [((Int, Int), (Int, Int))]
+forcedCapture clr brd = filter canCapture pairs
+    where
+	pieces = piecesOf clr brd 
+	otherPieces = piecesOf (otherColor clr) brd
+        pairs = [(p1,p2) | p1 <- pieces, p2 <- otherPieces]
+	canCapture ((x1, y1), (x2, y2)) = okMove x1 y1 x2 y2 brd
 
 -- |Can the player of the given colour make any move?
 stalemate :: Color -> Board -> Bool
