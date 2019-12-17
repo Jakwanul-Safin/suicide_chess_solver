@@ -137,55 +137,61 @@ movesFrom x y brd
       mvFilter mvs
         | null right || not (opponentAt x2 y2) = left 
         | otherwise                            = head right :[]
-        where (left, right) = span (\(x2, y2) -> isJust $ pieceAt x2 y2 brd) mvs
+        where (left, right) = span (\(x2, y2) -> isNothing $ pieceAt x2 y2 brd) mvs
               (x2, y2) = head right
 
       opponentAt x2 y2 = isJust target && clr (fromJust target) /= owncolor 
         where target = pieceAt x2 y2 brd
 
-      dfFrom xx yy dx dy = (mvFilter $ zip [xx-dx..0] [yy-dy..0]) ++
-                           (mvFilter $ zip [xx+dx..7] [yy-dy..0]) ++
-                           (mvFilter $ zip [xx-dy..0] [yy+dx..7]) ++
-                           (mvFilter $ zip [xx+dy..7] [yy+dx..7])
+      rookFrom xx yy = (mvFilter $ zip [xx-1, xx-2..0] [yy, yy..]) ++
+                       (mvFilter $ zip [xx+1, xx+2..7] [yy, yy..]) ++
+                       (mvFilter $ zip [xx, xx..] [yy-1, yy-2..0]) ++
+                       (mvFilter $ zip [xx, xx..] [yy+1, yy+2..7])
 
-      movesFrom' (Piece _ Rook)   = dfFrom x y 1 0
-      movesFrom' (Piece _ Bishop) = dfFrom x y 1 1
-      movesFrom' (Piece _ Queen)  = dfFrom x y 1 0 ++ dfFrom x y 1 1
+      bishopFrom xx yy = (mvFilter $ zip [xx-1, xx-2..0] [yy-1, yy-2..0]) ++
+                         (mvFilter $ zip [xx+1, xx+2..7] [yy+1, yy+2..7]) ++
+                         (mvFilter $ zip [xx+1, xx+2..7] [yy-1, yy-2..0]) ++
+                         (mvFilter $ zip [xx-1, xx-2..0] [yy+1, yy+2..7])
+
+
+      inBounds x2 y2 = 0 <= x2 && x2 < 8 && 0 <= y2 && y2 < 8 
+
+      movesFrom' (Piece _ Rook)   = rookFrom x y
+      movesFrom' (Piece _ Bishop) = bishopFrom x y
+      movesFrom' (Piece _ Queen)  = rookFrom x y ++ bishopFrom x y
       movesFrom' (Piece _ Knight)
         | null caps = empty
         | otherwise = caps
           where 
-            prelocs = [(x+2, y+1), (x+1, y+2), (x-2, y+1), (x-1, y+2), (x+2, y-1), (x+1, y-2), (x-2, y-1), (x-1, y-2)]
-            locs = filter ((<8) . snd) . filter ((>0) . snd) . filter ((<8) . fst) $ filter ((>0) . fst) prelocs
+            locs = filter (uncurry inBounds) [(x+2, y+1), (x+1, y+2), (x-2, y+1), (x-1, y+2), (x+2, y-1), (x+1, y-2), (x-2, y-1), (x-1, y-2)]
             caps = filter (\(x2, y2) -> opponentAt x2 y2) locs
-            empty = filter (\(x2, y2) -> isNothing (pieceAt x2 y2 brd)) locs 
+            empty = filter (\(x2, y2) -> isNothing $ pieceAt x2 y2 brd) locs 
 
       movesFrom' (Piece _ King)
         | null caps = empty
         | otherwise = caps
           where 
-            prelocs = [(x+1, y+1), (x, y+1), (x-1, y+1), (x+1, y), (x-1, y), (x+1, y-1), (x, y-1), (x-1, y-1)]
-            locs = filter ((<8) . snd) . filter ((>0) . snd) . filter ((<8) . fst) $ filter ((>0) . fst) prelocs
+            locs = filter (uncurry inBounds) [(x+1, y+1), (x, y+1), (x-1, y+1), (x+1, y), (x-1, y), (x+1, y-1), (x, y-1), (x-1, y-1)]
             caps = filter (\(x2, y2) -> opponentAt x2 y2) locs
-            empty = filter (\(x2, y2) -> isNothing (pieceAt x2 y2 brd)) locs 
+            empty = filter (\(x2, y2) -> isNothing $ pieceAt x2 y2 brd) locs 
 
       movesFrom' (Piece White Pawn)
         | not $ null captures = captures
-        | isJust (pieceAt x (y + 1) brd) = []
+        | y == 7 || isJust (pieceAt x (y + 1) brd) = []
         | y == 1 && isNothing (pieceAt x (y + 2) brd) = [(x, y + 1), (x, y + 2)]
         | otherwise = [(x, y + 1)]
         where
-          enpassantCaps = filter (\(x2, y2) -> enpassant brd == Just (x2, y2)) [(x + 1, y), (x - 1, y)]
-          captures = filter (\(x2, y2) -> opponentAt x2 y2) (enpassantCaps ++ [(x + 1, y + 1), (x - 1, y + 1)])
+          enpassantCaps = filter (\(x2, y2) -> enpassant brd == Just (x2, y2)) $ filter (uncurry inBounds) [(x + 1, y), (x - 1, y)]
+          captures = filter (\(x2, y2) -> opponentAt x2 y2) (enpassantCaps ++ filter (uncurry inBounds) [(x + 1, y + 1), (x - 1, y + 1)])
  
       movesFrom' (Piece Black Pawn)
         | not $ null captures = captures
-        | isJust (pieceAt x (y - 1) brd) = []
-        | y == 7 && isNothing (pieceAt x (y - 2) brd) = [(x, y - 1), (x, y - 2)]
+        | y == 0 || isJust (pieceAt x (y - 1) brd) = []
+        | y == 6 && isNothing (pieceAt x (y - 2) brd) = [(x, y - 1), (x, y - 2)]
         | otherwise = [(x, y - 1)]
         where
-          enpassantCaps = filter (\(x2, y2) -> enpassant brd == Just (x2, y2)) [(x - 1, y), (x + 1, y)]
-          captures = filter (\(x2, y2) -> opponentAt x2 y2) (enpassantCaps ++ [(x - 1, y - 1), (x + 1, y - 1)])
+          enpassantCaps = filter (\(x2, y2) -> enpassant brd == Just (x2, y2)) $ filter (uncurry inBounds) [(x - 1, y), (x + 1, y)]
+          captures = filter (\(x2, y2) -> opponentAt x2 y2) (enpassantCaps ++ filter (uncurry inBounds) [(x - 1, y - 1), (x + 1, y - 1)])
 
 
 moveAllowed x y x2 y2 brd
