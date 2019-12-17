@@ -1,7 +1,6 @@
 import Chess.FEN
 import Data.Either
 import Data.Maybe
-import Control.Monad.Instances
 import Data.Array
 import Data.Char
 import qualified Data.List as L
@@ -27,7 +26,12 @@ fixedMove x y x2 y2 brd = case move' x y x2 y2 brd of
     Right new_brd -> new_brd
     Left error -> defaultBoard
 
-moveList brd = [(x, y, fst z, snd z) | x <- [0..7], y <- [0..7], z <- movesFrom x y brd]
+moveList brd
+  | null caps = empty
+  | otherwise  = caps 
+    where 
+      empty = [(x, y, fst z, snd z) | x <- [0..7], y <- [0..7], z <- movesFrom x y brd]
+      caps = filter (\(x, y, x2, y2) -> isJust $ pieceAt x2 y2 brd) empty  
 
 moveList' brd 
     | length (captureMoves) > 0 = map (\((x1,y1),(x2,y2)) -> (x1,y1,x2,y2)) captureMoves 
