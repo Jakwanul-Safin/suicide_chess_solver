@@ -10,12 +10,15 @@ import Chess
 pos = fromJust $ fromFEN "8/8/8/4n3/6q1/8/5K2/8 w - - 0 1"
 p2 = fixedMove 5 1 5 2 pos
 p4 = fromJust $ fromFEN "8/8/4nn2/8/8/4K3/8/8 b - - 0 2"
-p5 = nextBoards p4 !! 2
+p5 = nextBoards p4 !! 7
 p6 = nextBoards p5 !! 0
 p7 = nextBoards p6 !! 0
 
 -- negaMax 6 pt -> takes ~2 minutes, solves correctly.
 pt = fromJust $ fromFEN "2b2b2/1p2p3/4k3/8/3qP3/r7/5P2/2n1K3 w - - 0 20"
+pt2 = fromJust $ fromFEN "8/5k2/n3p3/7p/4r3/2p5/P1P1P2K/2R5 w - - 2 28"
+pt3 = fromJust $ fromFEN "8/5r2/8/5p2/6N1/3Q4/4K3/8 w - - 0 1"
+pt4 = fromJust $ fromFEN "8/5r2/8/5p2/6N1/3QP3/4K3/8 w - - 0 1"
 
 okMove brd (x,y,x2,y2) = not $ isLeft $ moveAllowed x y x2 y2 brd
 
@@ -68,3 +71,18 @@ negaMax n brd
         mult
             | turn brd == Black = -1
             | turn brd == White = 1
+
+-- Non-working alpha beta
+ab' n brd = ab n (-1000) (1000) brd
+ab n a b brd
+    | n == 0 || length nb == 0 = a `max` (score brd * mult) `min` b
+    | otherwise = f a nb
+    where
+        mult = if (turn brd == Black) then -1 else 1
+        nb = nextBoards brd
+        f a_ [] = a_
+        f a_ (nb1:nbs)
+            | a' >= b = a'
+            | otherwise = f a' nbs
+            where a' = - (ab (n-1) (-b) (-a) nb1)
+
