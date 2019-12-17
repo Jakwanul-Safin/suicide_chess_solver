@@ -8,7 +8,15 @@ import qualified Data.List as L
 import Data.Tree
 import Chess
 
-pos = fromJust $ fromFEN "r3k2r/B1p2ppp/8/2bp4/3qP1Q1/2NP4/PPP2PPP/R3K2R w KQkq - 0 1"
+pos = fromJust $ fromFEN "8/8/8/4n3/6q1/8/5K2/8 w - - 0 1"
+p2 = fixedMove 5 1 5 2 pos
+p4 = fromJust $ fromFEN "8/8/4nn2/8/8/4K3/8/8 b - - 0 2"
+p5 = nextBoards p4 !! 2
+p6 = nextBoards p5 !! 0
+p7 = nextBoards p6 !! 0
+
+-- negaMax 6 pt -> takes ~2 minutes, solves correctly.
+pt = fromJust $ fromFEN "2b2b2/1p2p3/4k3/8/3qP3/r7/5P2/2n1K3 w - - 0 20"
 
 okMove brd (x,y,x2,y2) = not $ isLeft $ moveAllowed x y x2 y2 brd
 
@@ -45,6 +53,12 @@ negaMax depth brd
 -}
 
 --negaMax :: (Num a) => a -> Board -> Int
-negaMax 0 brd = score brd
-negaMax n brd = - minimum (map (negaMax (n-1)) (nextBoards brd))
-
+--negaMax 0 brd = score brd
+negaMax n brd
+    | n == 0 || length nb == 0 = score brd * mult
+    | otherwise = -minimum (map (negaMax (n-1)) nb)
+    where
+        nb = nextBoards brd
+        mult
+            | turn brd == Black = -1
+            | turn brd == White = 1
