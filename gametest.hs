@@ -27,7 +27,9 @@ fixedMove x y x2 y2 brd = case move' x y x2 y2 brd of
     Right new_brd -> new_brd
     Left error -> defaultBoard
 
-moveList brd 
+moveList brd = [(x, y, fst z, snd z) | x <- [0..7], y <- [0..7], z <- movesFrom x y brd]
+
+moveList' brd 
     | length (captureMoves) > 0 = map (\((x1,y1),(x2,y2)) -> (x1,y1,x2,y2)) captureMoves 
     | otherwise = filter (okMove brd) 
                     [(x1,y1,x2,y2) | x1 <- [0..7], y1 <- [0..7], x2 <- [0..7], y2 <- [0..7]]
