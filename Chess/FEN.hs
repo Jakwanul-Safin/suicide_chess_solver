@@ -2,9 +2,9 @@
 
 module Chess.FEN ( fromFEN
                      , toFEN
-	             , defaultFEN
-	             , defaultBoard
-	             ) where
+                     , defaultFEN
+                     , defaultBoard
+             ) where
 
 import Chess
 import qualified Data.List as L
