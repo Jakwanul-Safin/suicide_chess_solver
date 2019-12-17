@@ -19,6 +19,10 @@ fixedMove x y x2 y2 brd = case move' x y x2 y2 brd of
     Right new_brd -> new_brd
     Left error -> defaultBoard
 
+moveList brd
+  | not . null forcedCaptures brd = forcedCaptures
+  |
+
 moveList brd = filter (okMove brd) [(x1,y1,x2,y2) | x1 <- [0..7], y1 <- [0..7],
                                     x2 <- [0..7], y2 <- [0..7]]
 score brd 
