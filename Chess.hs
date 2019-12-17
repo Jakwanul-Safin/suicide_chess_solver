@@ -124,6 +124,26 @@ validMove x y x2 y2 brd = pieceAt x y brd >>= \piece -> validMove' piece where
     | enpassant brd == Just (x2,y2) && isJust (pieceAt x2 y brd) && abs (x2-x) == 1 && y2-y == -1 = Just EnPassant -- en passant
     | otherwise = Nothing
 
+{-
+movesFrom x y brd 
+  | isNothing piece      = []
+  | owncolor /= turn brd = []
+  | otherwise            = movesFrom' ownpiece
+    where 
+      mvFilter mvs
+        | null right || clr target == owncolor = left 
+        | otherwise = [head right]
+        where (left, right) = span (\(x, y) -> isJust $ pieceAt x y brd)
+              (x2, y2) = head right
+              target = fromJust $ pieceAt x2 y2 brd
+
+= pieceAt x y brd >>= \piece -> movesFrom' piece where
+  mvFilter mvs = 
+  
+  movesFrom' (Piece _ Rook) = mvFilter clr [(xx, y) | xx<-[x-1..1]] ++ mvFilter clr [(xx, y) | xx <- [x+1..8]]
+                                   ++ mvFilter clr [(x, yy) | yy<-[y-1..1]] ++ mvFilter clr [(x, yy) | yy<-[y+1..8]]
+-}
+
 moveAllowed x y x2 y2 brd
   | isNothing $ pieceAt x y brd = Left NoPiece
   | owncolor /= turn brd = Left WrongTurn
