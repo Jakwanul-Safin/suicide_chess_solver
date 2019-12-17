@@ -17,6 +17,7 @@ module Chess( MoveError(..)
             , forcedCapture
             , validMove
             , moveAllowed
+            , movesFrom
             ) where
 
 import           Data.Array
@@ -124,25 +125,68 @@ validMove x y x2 y2 brd = pieceAt x y brd >>= \piece -> validMove' piece where
     | enpassant brd == Just (x2,y2) && isJust (pieceAt x2 y brd) && abs (x2-x) == 1 && y2-y == -1 = Just EnPassant -- en passant
     | otherwise = Nothing
 
-{-
 movesFrom x y brd 
-  | isNothing piece      = []
-  | owncolor /= turn brd = []
-  | otherwise            = movesFrom' ownpiece
-    where 
+  | isNothing piece          = []
+  | clr ownpiece /= turn brd = []
+  | otherwise                = movesFrom' ownpiece
+    where
+      piece = pieceAt x y brd
+      ownpiece = fromJust piece
+      owncolor = clr ownpiece
+ 
       mvFilter mvs
-        | null right || clr target == owncolor = left 
-        | otherwise = [head right]
-        where (left, right) = span (\(x, y) -> isJust $ pieceAt x y brd)
+        | null right || not (opponentAt x2 y2) = left 
+        | otherwise                            = head right :[]
+        where (left, right) = span (\(x2, y2) -> isJust $ pieceAt x2 y2 brd) mvs
               (x2, y2) = head right
-              target = fromJust $ pieceAt x2 y2 brd
 
-= pieceAt x y brd >>= \piece -> movesFrom' piece where
-  mvFilter mvs = 
-  
-  movesFrom' (Piece _ Rook) = mvFilter clr [(xx, y) | xx<-[x-1..1]] ++ mvFilter clr [(xx, y) | xx <- [x+1..8]]
-                                   ++ mvFilter clr [(x, yy) | yy<-[y-1..1]] ++ mvFilter clr [(x, yy) | yy<-[y+1..8]]
--}
+      opponentAt x2 y2 = isJust target && clr (fromJust target) /= owncolor 
+        where target = pieceAt x2 y2 brd
+
+      dfFrom xx yy dx dy = (mvFilter $ zip [xx-dx..0] [yy-dy..0]) ++
+                           (mvFilter $ zip [xx+dx..7] [yy-dy..0]) ++
+                           (mvFilter $ zip [xx-dy..0] [yy+dx..7]) ++
+                           (mvFilter $ zip [xx+dy..7] [yy+dx..7])
+
+      movesFrom' (Piece _ Rook)   = dfFrom x y 1 0
+      movesFrom' (Piece _ Bishop) = dfFrom x y 1 1
+      movesFrom' (Piece _ Queen)  = dfFrom x y 1 0 ++ dfFrom x y 1 1
+      movesFrom' (Piece _ Knight)
+        | null caps = empty
+        | otherwise = caps
+          where 
+            prelocs = [(x+2, y+1), (x+1, y+2), (x-2, y+1), (x-1, y+2), (x+2, y-1), (x+1, y-2), (x-2, y-1), (x-1, y-2)]
+            locs = filter ((<8) . snd) . filter ((>0) . snd) . filter ((<8) . fst) $ filter ((>0) . fst) prelocs
+            caps = filter (\(x2, y2) -> opponentAt x2 y2) locs
+            empty = filter (\(x2, y2) -> isNothing (pieceAt x2 y2 brd)) locs 
+
+      movesFrom' (Piece _ King)
+        | null caps = empty
+        | otherwise = caps
+          where 
+            prelocs = [(x+1, y+1), (x, y+1), (x-1, y+1), (x+1, y), (x-1, y), (x+1, y-1), (x, y-1), (x-1, y-1)]
+            locs = filter ((<8) . snd) . filter ((>0) . snd) . filter ((<8) . fst) $ filter ((>0) . fst) prelocs
+            caps = filter (\(x2, y2) -> opponentAt x2 y2) locs
+            empty = filter (\(x2, y2) -> isNothing (pieceAt x2 y2 brd)) locs 
+
+      movesFrom' (Piece White Pawn)
+        | not $ null captures = captures
+        | isJust (pieceAt x (y + 1) brd) = []
+        | y == 1 && isNothing (pieceAt x (y + 2) brd) = [(x, y + 1), (x, y + 2)]
+        | otherwise = [(x, y + 1)]
+        where
+          enpassantCaps = filter (\(x2, y2) -> enpassant brd == Just (x2, y2)) [(x + 1, y), (x - 1, y)]
+          captures = filter (\(x2, y2) -> opponentAt x2 y2) (enpassantCaps ++ [(x + 1, y + 1), (x - 1, y + 1)])
+ 
+      movesFrom' (Piece Black Pawn)
+        | not $ null captures = captures
+        | isJust (pieceAt x (y - 1) brd) = []
+        | y == 7 && isNothing (pieceAt x (y - 2) brd) = [(x, y - 1), (x, y - 2)]
+        | otherwise = [(x, y - 1)]
+        where
+          enpassantCaps = filter (\(x2, y2) -> enpassant brd == Just (x2, y2)) [(x - 1, y), (x + 1, y)]
+          captures = filter (\(x2, y2) -> opponentAt x2 y2) (enpassantCaps ++ [(x - 1, y - 1), (x + 1, y - 1)])
+
 
 moveAllowed x y x2 y2 brd
   | isNothing $ pieceAt x y brd = Left NoPiece
@@ -186,10 +230,10 @@ castcase clr c = if clr == White then map toUpper c else map toLower c
 forcedCapture :: Color -> Board -> [((Int, Int), (Int, Int))]
 forcedCapture clr brd = filter canCapture pairs
     where
-	pieces = piecesOf clr brd 
-	otherPieces = piecesOf (otherColor clr) brd
+        pieces = piecesOf clr brd 
+        otherPieces = piecesOf (otherColor clr) brd
         pairs = [(p1,p2) | p1 <- pieces, p2 <- otherPieces]
-	canCapture ((x1, y1), (x2, y2)) = okMove x1 y1 x2 y2 brd
+        canCapture ((x1, y1), (x2, y2)) = okMove x1 y1 x2 y2 brd
 
 -- |Can the player of the given colour make any move?
 stalemate :: Color -> Board -> Bool
