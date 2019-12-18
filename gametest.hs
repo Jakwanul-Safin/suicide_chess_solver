@@ -12,7 +12,6 @@ pt4 = fromJust $ fromFEN "8/5r2/8/5p2/6N1/3QP3/4K3/8 w - - 0 1" -- Mate in 4
 pt5 = fromJust $ fromFEN "8/8/8/8/4r2p/8/2P3K1/8 w - - 2 28" -- Mate in 2
 pt6 = fromJust $ fromFEN "8/1n3k2/4p3/7p/4r3/7K/2P5/3R4 w - - 2 28" -- Mate in 3
 
-
 okMove brd (x,y,x2,y2) = not $ isLeft $ moveAllowed x y x2 y2 brd
 
 fixedMove x y x2 y2 brd = case move' x y x2 y2 brd of
@@ -31,12 +30,12 @@ moveList brd
 -- Static evaluation. 100 = win.
 score :: Board -> Int
 score brd 
-    | blackScore == 0 = -100
-    | whiteScore == 0 = 100
-    | otherwise = (blackScore - whiteScore)
+  | null $ mvList = mult * 100
+  | otherwise = 5 * (length (piecesOf Black brd) `div` length (piecesOf White brd) - 1) 
+                    + mult * length mvList
     where
-        blackScore = length (piecesOf Black brd) 
-        whiteScore = length (piecesOf White brd)
+      mult   = if turn brd == White then 1 else -1
+      mvList = moveList brd
 
 -- Get the list of all next possible board states
 nextBoards :: Board -> [Board]
@@ -47,7 +46,7 @@ negaMax :: Int -> Board -> Int
 negaMax n brd
     | null nb || n == 0 = mult * (score brd)
     | otherwise = -minimum (map (negaMax (n-1)) nb)
-    where nb = nextBoards brd
+    where nb = (take 5) . (sortOn $ negate . (*mult) . score) $ nextBoards brd
           mult = if (turn brd == White) then 1 else -1
 
 -- Minimax that stores the best move.
