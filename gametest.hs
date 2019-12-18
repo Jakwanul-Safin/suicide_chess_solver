@@ -15,7 +15,7 @@ p5 = nextBoards p4 !! 7
 p6 = nextBoards p5 !! 0
 p7 = nextBoards p6 !! 0
 
--- negaMax 6 pt -> takes ~2 minutes, solves correctly.
+-- negaMax 6 pt -> takes ~20 seconds, solves correctly.
 pt = fromJust $ fromFEN "2b2b2/1p2p3/4k3/8/3qP3/r7/5P2/2n1K3 w - - 0 20"
 pt2 = fromJust $ fromFEN "8/5k2/n3p3/7p/4r3/2p5/P1P1P2K/2R5 w - - 2 28"
 pt3 = fromJust $ fromFEN "8/5r2/8/5p2/6N1/3Q4/4K3/8 w - - 0 1"
@@ -54,7 +54,7 @@ score brd
 
 nextBoards brd = [(fixedMove x y x2 y2 brd) | (x,y,x2,y2) <- moveList brd]
 
-nextLayer layer = layer >>= (\b -> [(fixedMove x y x2 y2 b) | (x,y,x2,y2) <- moveList b])
+--nextLayer layer = layer >>= (\b -> [(fixedMove x y x2 y2 b) | (x,y,x2,y2) <- moveList b])
 
 {-
 negaMax depth brd
@@ -74,6 +74,7 @@ negaMax n brd
             | turn brd == White = 1
 
 -- Non-working alpha beta
+{-
 ab' n brd = ab n (-1000) (1000) brd
 ab n a b brd
     | n == 0 || length nb == 0 = a `max` (score brd * mult) `min` b
@@ -86,7 +87,7 @@ ab n a b brd
             | a' >= b = a'
             | otherwise = f a' nbs
             where a' = - (ab (n-1) (-b) (-a) nb1)
-
+-}
 
 --solve :: Board -> Int
 miniMaxWithMoves n brd =  maximumBy (\(x,_) (y,_) -> compare x y) $ 
@@ -95,7 +96,16 @@ miniMaxWithMoves n brd =  maximumBy (\(x,_) (y,_) -> compare x y) $
                           where
                             stringMove (x1,y1,x2,y2) = (posToStr (x1,y1)) ++ (posToStr (x2,y2))
                             results brd = map negate $ map (negaMax (n-1)) $ nextBoards brd
-                            
+
+-- Calls minimax with increasing depth until answer.
+itDeep depth limit brd
+    | fst results /= 100 && depth <= limit = itDeep (depth+1) limit brd
+    | otherwise = results
+    where results = miniMaxWithMoves depth brd 
+
+-- Main entry point. Solves board, returns score (White wins) + best first move
+solve :: Board -> (Int, [Char])
+solve brd = itDeep 1 8 brd                    
 
 main :: IO()
 main = print (negaMax 8 pt4)
