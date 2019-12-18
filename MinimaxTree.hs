@@ -110,7 +110,7 @@ miniMaxWithMoves n mmTree =
 -- Calls minimax with increasing depth until answer.
 itDeep :: Int -> Int -> Board -> Maybe (Int, [Char], Int)
 itDeep depth limit brd
-    | fst results /= 100 && depth <= limit = itDeep (depth+1) limit brd
+    | abs fst results /= 100 && depth <= limit = itDeep (depth+1) limit brd
     | depth > limit = Nothing
     | otherwise = Just (fst results, snd results, depth `div` 2)
     where results = miniMaxWithMoves depth $ minimaxFrom brd 
