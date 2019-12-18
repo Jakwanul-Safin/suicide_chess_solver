@@ -32,22 +32,12 @@ moveList brd
       empty = [(x, y, fst z, snd z) | x <- [0..7], y <- [0..7], z <- movesFrom x y brd]
       caps = filter (\(x, y, x2, y2) -> isJust $ pieceAt x2 y2 brd) empty  
 
-<<<<<<< Updated upstream
 -- Static evaluation. 100 = win.
-score :: Board -> Int
-=======
-moveList' brd 
-    | length (captureMoves) > 0 = map (\((x1,y1),(x2,y2)) -> (x1,y1,x2,y2)) captureMoves 
-    | otherwise = filter (okMove brd) 
-                    [(x1,y1,x2,y2) | x1 <- [0..7], y1 <- [0..7], x2 <- [0..7], y2 <- [0..7]]
-    where 
-        captureMoves = forcedCapture (turn brd) brd
-
 mult brd
   | turn brd == White = 1
   | otherwise         = -1
 
->>>>>>> Stashed changes
+score :: Board -> Int
 score brd 
     | blackScore == 0 = -100
     | whiteScore == 0 = 100
@@ -59,30 +49,14 @@ score brd
 -- Get the list of all next possible board states
 nextBoards :: Board -> [Board]
 nextBoards brd = [(fixedMove x y x2 y2 brd) | (x,y,x2,y2) <- moveList brd]
-<<<<<<< Updated upstream
 
 -- Simplified minimax
 negaMax :: Int -> Board -> Int
-=======
-nextLayer layer = layer >>= (\b -> [(fixedMove x y x2 y2 b) | (x,y,x2,y2) <- moveList b])
-
-{-
-negaMax depth brd
-    | depth == 0 || abs (score brd) == 100 = score brd
-    | otherwise = - minimum (map negaMax (depth-1)) $ map score $ nextBoards brd
--}
-
---negaMax :: (Num a) => a -> Board -> Int
---negaMax 0 brd = score brd
->>>>>>> Stashed changes
 negaMax n brd
     | null nb   = mult brd * 100
     | n == 0    = score brd
     | otherwise = -minimum (map (negaMax (n-1)) nb)
-<<<<<<< Updated upstream
-    where
-        nb = nextBoards brd
-        mult = if (turn brd == Black) then -1 else 1
+    where nb = nextBoards brd
 
 -- Minimax that stores the best move.
 miniMaxWithMoves :: Int -> Board -> (Int, [Char])
@@ -119,6 +93,3 @@ main = do
     let positions = [pos, pt, pt3, pt5, pt4, pt6]
     let results = map parse (map solve positions `using` parList rseq)
     sequence_ $ map putStrLn results
-=======
-    where nb = nextBoards brd
->>>>>>> Stashed changes
