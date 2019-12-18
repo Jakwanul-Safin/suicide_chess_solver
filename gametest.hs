@@ -2,6 +2,7 @@ import Chess.FEN
 import Data.Either
 import Data.Maybe
 import Data.Array
+import Data.List
 import Data.Char
 import qualified Data.List as L
 import Data.Tree
@@ -86,3 +87,15 @@ ab n a b brd
             | otherwise = f a' nbs
             where a' = - (ab (n-1) (-b) (-a) nb1)
 
+
+--solve :: Board -> Int
+miniMaxWithMoves n brd =  maximumBy (\(x,_) (y,_) -> compare x y) $ 
+                                   zip (results brd)
+                                   (map stringMove $ moveList brd)
+                          where
+                            stringMove (x1,y1,x2,y2) = (posToStr (x1,y1)) ++ (posToStr (x2,y2))
+                            results brd = map negate $ map (negaMax (n-1)) $ nextBoards brd
+                            
+
+main :: IO()
+main = print (negaMax 8 pt4)
