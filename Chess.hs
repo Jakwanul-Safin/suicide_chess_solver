@@ -18,6 +18,7 @@ module Chess( MoveError(..)
             , validMove
             , moveAllowed
             , movesFrom
+            , posToStr
             ) where
 
 import           Data.Array
@@ -78,6 +79,7 @@ instance Show Board where
 
 otherColor x = if x == White then Black else White
 
+-- Get string move from coordinates
 posToStr (x,y) = [chr (x + 97), chr (y + 49)]
 
 -- |Takes a position like "a5" and returns the coordinates (0,4)
