@@ -3,6 +3,7 @@ import Data.Either
 import Data.Maybe
 import Data.List
 import Chess
+import Control.Parallel.Strategies(using, parList, rseq, rpar)
 
 pos = fromJust $ fromFEN "8/8/8/4n3/6q1/8/5K2/8 w - - 0 1"
 -- negaMax 6 pt -> takes ~20 seconds, solves correctly.
@@ -11,6 +12,7 @@ pt3 = fromJust $ fromFEN "8/5r2/8/5p2/6N1/3Q4/4K3/8 w - - 0 1" -- Mate in 3
 pt4 = fromJust $ fromFEN "8/5r2/8/5p2/6N1/3QP3/4K3/8 w - - 0 1" -- Mate in 4
 -- negaMax 8 pt4 -> ~ 120 seconds.
 pt5 = fromJust $ fromFEN "8/8/8/8/4r2p/8/2P3K1/8 w - - 2 28" -- Mate in 2
+pt6 = fromJust $ fromFEN "8/1n3k2/4p3/7p/4r3/7K/2P5/3R4 w - - 2 28" -- Mate in 3
 
 
 okMove brd (x,y,x2,y2) = not $ isLeft $ moveAllowed x y x2 y2 brd
@@ -58,7 +60,8 @@ miniMaxWithMoves n brd =  maximumBy (\(x,_) (y,_) -> compare x y) $
                                    (map stringMove $ moveList brd)
                           where
                             stringMove (x1,y1,x2,y2) = (posToStr (x1,y1)) ++ (posToStr (x2,y2))
-                            results brd = map negate $ map (negaMax (n-1)) $ nextBoards brd
+                            results brd = map negate (map (negaMax (n-1)) (nextBoards brd)
+                                          `using` parList rseq)
 
 -- Calls minimax with increasing depth until answer.
 itDeep :: Int -> Int -> Board -> Maybe (Int, [Char], Int)
@@ -82,6 +85,6 @@ parse (Just (score, move, num_moves)) = "Best move: " ++ show move ++ result ++
 main :: IO ()
 main = do
     -- This is a decently good test suite. More notes above.
-    let positions = [pos, pt, pt3, pt5, pt4]
-    let results = map parse $ map solve positions
+    let positions = [pos, pt, pt3, pt5, pt4, pt6]
+    let results = map parse (map solve positions `using` parList rseq)
     sequence_ $ map putStrLn results
