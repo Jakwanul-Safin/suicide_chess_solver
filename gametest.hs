@@ -5,6 +5,12 @@ import Data.List
 import Chess
 import Control.Parallel.Strategies(using, parList, rseq, rpar)
 
+import System.Environment(getArgs, getProgName)
+import System.IO.Error(catchIOError, isUserError, isDoesNotExistError,
+    ioeGetFileName, isPermissionError)
+import System.Exit(die)
+
+
 pos = fromJust $ fromFEN "8/8/8/4n3/6q1/8/5K2/8 w - - 0 1" -- Mate in 1
 pt = fromJust $ fromFEN "2b2b2/1p2p3/4k3/8/3qP3/r7/5P2/2n1K3 w - - 0 20" -- Mate in 3
 pt3 = fromJust $ fromFEN "8/5r2/8/5p2/6N1/3Q4/4K3/8 w - - 0 1" -- Mate in 3
@@ -45,8 +51,8 @@ nextBoards brd = [(fixedMove x y x2 y2 brd) | (x,y,x2,y2) <- moveList brd]
 negaMax :: Int -> Board -> Int
 negaMax n brd
     | null nb || n == 0 = mult * (score brd)
-    | otherwise = -minimum (map (negaMax (n-1)) nb)
-    where nb = (take 5) . (sortOn $ negate . (*mult) . score) $ nextBoards brd
+    | otherwise         = -minimum (map (negaMax (n-1)) nb `using` parList rseq)
+    where nb = take 4 $ sortOn (negate . (*mult) . score) $ nextBoards brd
           mult = if (turn brd == White) then 1 else -1
 
 -- Minimax that stores the best move.
@@ -56,6 +62,7 @@ miniMaxWithMoves n brd =  maximumBy (\(x,_) (y,_) -> compare x y) $
                                    (map stringMove $ moveList brd)
                           where
                             stringMove (x1,y1,x2,y2) = (posToStr (x1,y1)) ++ (posToStr (x2,y2))
+                            nb = take 8 $ sortOn (negate . score) $ nextBoards brd 
                             results brd = map negate (map (negaMax (n-1)) (nextBoards brd)
                                           `using` parList rseq)
 
@@ -78,9 +85,18 @@ parse (Just (score, move, num_moves)) = "Best move: " ++ show move ++ result ++
                                  " in " ++ show num_moves ++ " moves"
     where result = if score == 100 then ", white wins" else "ERROR"
 
-main :: IO ()
-main = do
-    -- This is a decently good test suite. More notes above.
-    let positions = [pos, pt, pt3, pt5, pt4, pt6]
-    let results = map parse (map solve positions `using` parList rseq)
-    sequence_ $ map putStrLn results
+main:: IO()
+main = do [filename, cases] <- getArgs
+          contents <- readFile filename
+          let brds = map (fromJust . fromFEN) . take (read cases) $ lines contents
+              results = map parse (map solve brds `using` parList rseq)
+          sequence_ $ map putStrLn results
+
+  `catchIOError` \e -> do
+    pn <- getProgName 
+    die $ case ioeGetFileName e of
+      Just fn | isDoesNotExistError e -> fn ++ ": no such file"
+              | isPermissionError e   -> fn ++ ": Permission denied"
+      _       | isUserError e         -> "Usage: " ++ pn ++
+                  " <filename> <# of test cases>"
+              | otherwise             -> show e
