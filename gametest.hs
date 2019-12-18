@@ -1,7 +1,3 @@
-module Gametest( moveList
-               , negaMax
-               ) where 
-
 import Chess.FEN
 import Data.Either
 import Data.Maybe
@@ -33,15 +29,11 @@ moveList brd
       caps = filter (\(x, y, x2, y2) -> isJust $ pieceAt x2 y2 brd) empty  
 
 -- Static evaluation. 100 = win.
-mult brd
-  | turn brd == White = 1
-  | otherwise         = -1
-
 score :: Board -> Int
 score brd 
     | blackScore == 0 = -100
     | whiteScore == 0 = 100
-    | otherwise = mult brd * (blackScore - whiteScore)
+    | otherwise = (blackScore - whiteScore)
     where
         blackScore = length (piecesOf Black brd) 
         whiteScore = length (piecesOf White brd)
@@ -53,10 +45,10 @@ nextBoards brd = [(fixedMove x y x2 y2 brd) | (x,y,x2,y2) <- moveList brd]
 -- Simplified minimax
 negaMax :: Int -> Board -> Int
 negaMax n brd
-    | null nb   = mult brd * 100
-    | n == 0    = score brd
+    | null nb || n == 0 = mult * (score brd)
     | otherwise = -minimum (map (negaMax (n-1)) nb)
     where nb = nextBoards brd
+          mult = if (turn brd == White) then 1 else -1
 
 -- Minimax that stores the best move.
 miniMaxWithMoves :: Int -> Board -> (Int, [Char])
