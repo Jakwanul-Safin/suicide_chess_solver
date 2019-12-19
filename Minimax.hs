@@ -82,26 +82,36 @@ displayLayers n mmTree
                    mapM (displayLayers (n-1)) $ next mmTree
                    putStrLn ""
 
+{-
 -- Static evaluation. 100 = win.
 score :: MinimaxTree -> Int
 score (Final brd _) = if turn brd == White then 100 else -100
 score mmTree        = min (-99) $ max 99 heuristic
     where
       brd       = boardOf mmTree
+      mult      = if turn brd == White then 1 else -1
       qBlack    = length $ piecesOf Black brd
       qWhite    = length $ piecesOf White brd
       flexMe    = length (next mmTree)
-      flexOp    = length (moveList brd{turn = 
-                    if turn brd == White then Black else White})
-      heuristic = 10 * (qBlack `div` qWhite - 1) + flexMe - flexOp
-                        
+      heuristic = 5 * (qBlack `div` qWhite - 1) + mult * flexMe
+-}
+
+score :: Board -> Int
+score brd 
+  | null $ mvList = mult * 100
+  | otherwise = 5 * (length (piecesOf Black brd) `div` length (piecesOf White brd) - 1) 
+                    + mult * length mvList
+    where
+      mult   = if turn brd == White then 1 else -1
+      mvList = moveList brd
+ 
 -- Simplified minimax
 negaMax :: Int -> MinimaxTree -> Int
 negaMax _ (Final brd _)        = if (turn brd == White) then 100 else -100
 negaMax n mmTree
-  | n == 0    = mult * (score mmTree)
+  | n == 0    = mult * (score $ boardOf mmTree)
   | otherwise = -minimum (map (negaMax (n-1)) nb `using` parList rseq) 
-    where nb = take 4 $ sortOn (negate . (*mult) . score) $ next mmTree
+    where nb = take 4 $ sortOn (negate . (*mult) . score . boardOf) $ next mmTree
           brd = boardOf mmTree
           mult = if (turn brd == White) then 1 else -1
 
@@ -111,7 +121,7 @@ miniMaxWithMoves n mmTree =
     maximumBy (\(x,_) (y,_) -> compare x y) $ 
     zip (results mmTree) (map stringMove $ moveList $ boardOf mmTree)
     where stringMove (x1,y1,x2,y2) = (posToStr (x1,y1)) ++ (posToStr (x2,y2))
-          nb = take 8 $ sortOn (negate . score) $ next mmTree 
+          nb = take 8 $ sortOn (negate . score . boardOf) $ next mmTree 
           results mmTree = map (negate . (negaMax $ n-1)) (next mmTree)
                                           `using` parList rseq
 
