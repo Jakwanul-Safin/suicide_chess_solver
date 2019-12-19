@@ -44,7 +44,7 @@ next (Partial _ nxt _) = nxt
 next _                 = error("Next called on leaf")
 
 nextBoards :: Board -> [Board]
-nextBoards brd = [(fixedMove x y x2 y2) | (x,y,x2,y2) <- moveList brd]
+nextBoards brd = map (\(x, y, x2, y2) -> fixedMove x y x2 y2) $ moveList brd
     where 
       fixedMove x y x2 y2 = case move' x y x2 y2 brd of
           Right new_brd -> new_brd
@@ -114,5 +114,4 @@ itDeep depth limit brd
     where
       ret = (fst results, snd results, depth)
       results = miniMaxWithMoves depth $ minimaxFrom brd 
-
 

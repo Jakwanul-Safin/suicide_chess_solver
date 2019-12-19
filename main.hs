@@ -17,8 +17,8 @@ parse :: (Int, [Char], Int) -> [Char]
 parse (scr, mv, qmv)
   | scr == 100 
       && odd qmv  = intro ++ ", White highly favored," ++ conc
-  | scr == 100 = intro ++ ", Black highly favored," ++ conc
-  | scr > 0    = intro ++ ", White favored (" ++ show scr ++ 
+  | scr == 100    = intro ++ ", Black highly favored," ++ conc
+  | scr > 0       = intro ++ ", White favored (" ++ show scr ++ 
                       ")" ++ conc
   | otherwise     = intro ++ ", Black favored (" ++ show scr ++ 
                       ")" ++ conc
