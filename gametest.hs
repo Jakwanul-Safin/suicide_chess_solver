@@ -20,7 +20,7 @@ parse :: Maybe (Int, [Char], Int) -> [Char]
 parse Nothing = "Couldn't find a winning position in under 4 moves" 
 parse (Just (score, move, num_moves)) = "Best move: " ++ show move ++ result ++
                                  " in " ++ show num_moves ++ " moves"
-    where result = if score == 100 then ", white wins" else "ERROR"
+    where result = if odd num_moves then ", white wins" else ", black wins"
 
 main:: IO()
 main = do [filename, cases] <- getArgs
