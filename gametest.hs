@@ -12,15 +12,21 @@ import System.IO.Error(catchIOError, isUserError, isDoesNotExistError,
 import System.Exit(die)
 
 -- Main entry point. Solves board, returns score (White wins) + best first move
-solve :: Board -> Maybe (Int, [Char], Int)
+solve :: Board -> (Int, [Char], Int)
 solve brd = itDeep 1 8 brd                    
 
 -- Formats the result into something readable
-parse :: Maybe (Int, [Char], Int) -> [Char]
-parse Nothing = "Couldn't find a winning position in under 4 moves" 
-parse (Just (score, move, num_moves)) = "Best move: " ++ show move ++ result ++
-                                 " in " ++ show num_moves ++ " moves"
-    where result = if odd num_moves then ", white wins" else ", black wins"
+parse :: (Int, [Char], Int) -> [Char]
+parse (score, move, num_moves)
+  | score == 100  = intro ++ ", White highly favored," ++ conc
+  | score == -100 = intro ++ ", Black highly favored," ++ conc
+  | score > 0     = intro ++ ", White favored (" ++ show score ++ 
+                      ")" ++ conc
+  | otherwise     = intro ++ ", Black favored (" ++ show score ++ 
+                      ")" ++ conc
+    where 
+      intro = "Best move: "     ++ show move
+      conc  = " search depth: " ++ show num_moves
 
 main:: IO()
 main = do [filename, cases] <- getArgs

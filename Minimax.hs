@@ -41,9 +41,14 @@ moveList brd
       empty = [(x, y, fst z, snd z) | x <- [0..7], y <- [0..7], z <- movesFrom x y brd]
       caps = filter (\(x, y, x2, y2) -> isJust $ pieceAt x2 y2 brd) empty  
 
+{- Data structure encoding minimax tree
+ - Root is starting position
+ - Parital is a node
+ - Final is a leaf
+ -}
 data MinimaxTree = Root (Board) [MinimaxTree]
-                     | Partial (Board) [MinimaxTree] (MinimaxTree)
-                     | Final (Board) (MinimaxTree)
+                 | Partial (Board) [MinimaxTree] (MinimaxTree)
+                 | Final (Board) (MinimaxTree)
 
 boardOf (Root brd _)      = brd
 boardOf (Partial brd _ _) = brd
@@ -51,7 +56,7 @@ boardOf (Final brd _)     = brd
 
 next (Root _ nxt)      = nxt
 next (Partial _ nxt _) = nxt
-next _                 = error("Next called on final")
+next _                 = error("Next called on leaf")
 
 
 nextBoards :: Board -> [Board]
@@ -64,72 +69,69 @@ minimaxFrom' parent brd
         partial = Partial brd (map (minimaxFrom' partial) nextPos) parent
         nextPos = nextBoards brd
 
-
+--Builds the minimax tree from a given node
+minimaxFrom :: Board -> MinimaxTree
 minimaxFrom brd = root
     where 
       root = Root brd (map (minimaxFrom' root) nextPositions)
       nextPositions = nextBoards brd
 
+fromRoot :: MinimaxTree -> [Board]
 fromRoot (Root brd _)           = brd:[]
 fromRoot (Partial brd _ parent) = brd:(fromRoot parent)
 fromRoot (Final brd parent)     = brd:(fromRoot parent)
 
+displayLayers :: Int -> MinimaxTree -> IO()
 displayLayers n (Final brd _) = putStrLn $ show brd
-
 displayLayers n mmTree
   | n == 0 = return ()
   | otherwise = do putStr . show $ boardOf mmTree
                    mapM (displayLayers (n-1)) $ next mmTree
                    putStrLn ""
 
-{-
 -- Static evaluation. 100 = win.
 score :: MinimaxTree -> Int
 score (Final brd _) = if turn brd == White then 100 else -100
-score mmTree        = min (-99) $ max 99 heuristic
+score mmTree        = max (-99) $ min 99 heuristic
     where
       brd       = boardOf mmTree
       mult      = if turn brd == White then 1 else -1
       qBlack    = length $ piecesOf Black brd
       qWhite    = length $ piecesOf White brd
       flexMe    = length (next mmTree)
-      heuristic = 5 * (qBlack `div` qWhite - 1) + mult * flexMe
--}
-
-score :: Board -> Int
-score brd 
-  | null $ mvList = mult * 100
-  | otherwise = 5 * (length (piecesOf Black brd) `div` length (piecesOf White brd) - 1) 
-                    + mult * length mvList
-    where
-      mult   = if turn brd == White then 1 else -1
-      mvList = moveList brd
+      flexOp    = length (moveList brd{turn = 
+                    if turn brd == White then Black else White})
+      heuristic = 10 * (qBlack `div` qWhite - 1) + mult * (flexMe - flexOp)
  
 -- Simplified minimax
 negaMax :: Int -> MinimaxTree -> Int
 negaMax _ (Final brd _)        = if (turn brd == White) then 100 else -100
 negaMax n mmTree
-  | n == 0    = mult * (score $ boardOf mmTree)
+  | n == 0    = mult * (score mmTree)
   | otherwise = -minimum (map (negaMax (n-1)) nb `using` parList rseq) 
-    where nb = take 4 $ sortOn (negate . (*mult) . score . boardOf) $ next mmTree
-          brd = boardOf mmTree
-          mult = if (turn brd == White) then 1 else -1
+    where 
+      nb = take 5 $ sortOn (negate . (*mult) . score ) $ next mmTree
+      brd = boardOf mmTree
+      mult = if (turn brd == White) then 1 else -1
 
 -- Minimax that stores the best move.
 miniMaxWithMoves :: Int -> MinimaxTree -> (Int, [Char])
 miniMaxWithMoves n mmTree =  
     maximumBy (\(x,_) (y,_) -> compare x y) $ 
     zip (results mmTree) (map stringMove $ moveList $ boardOf mmTree)
-    where stringMove (x1,y1,x2,y2) = (posToStr (x1,y1)) ++ (posToStr (x2,y2))
-          nb = take 8 $ sortOn (negate . score . boardOf) $ next mmTree 
-          results mmTree = map (negate . (negaMax $ n-1)) (next mmTree)
-                                          `using` parList rseq
+    where 
+      stringMove (x1,y1,x2,y2) = (posToStr (x1,y1)) ++ (posToStr (x2,y2))
+      nb = take 8 $ sortOn (negate . score ) $ next mmTree 
+      results mmTree = map (negate . (negaMax $ n-1)) (next mmTree)
+                        `using` parList rseq
 
 -- Calls minimax with increasing depth until answer.
-itDeep :: Int -> Int -> Board -> Maybe (Int, [Char], Int)
+itDeep :: Int -> Int -> Board -> (Int, [Char], Int)
 itDeep depth limit brd
-    | abs (fst results) /= 100 && depth <= limit = itDeep (depth+1) limit brd
-    | depth > limit = Nothing
-    | otherwise = Just (fst results, snd results, depth `div` 2)
-    where results = miniMaxWithMoves depth $ minimaxFrom brd 
+  | abs (fst results) == 100 || depth > limit = ret
+  | otherwise = itDeep (depth+1) limit brd
+    where
+      ret = (fst results, snd results, depth)
+      results = miniMaxWithMoves depth $ minimaxFrom brd 
+
 
