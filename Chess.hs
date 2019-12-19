@@ -222,7 +222,6 @@ movesFrom x y brd
             (enpassantCaps ++ filter (uncurry inBounds)
             [(x - 1, y - 1), (x + 1, y - 1)])
 
-
 moveAllowed x y x2 y2 brd
   | isNothing $ pieceAt x y brd = Left NoPiece
   | owncolor /= turn brd = Left WrongTurn
