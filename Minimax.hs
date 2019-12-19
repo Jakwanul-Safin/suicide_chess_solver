@@ -10,11 +10,10 @@ module Minimax( MinimaxTree(..)
               , itDeep
               ) where
 
-import Data.Either
 import Data.Maybe
 import Data.List
 import Chess
-import Control.Parallel.Strategies(using, parList, rseq, rpar)
+import Control.Parallel.Strategies(using, parList, rseq)
 
 -- Get all possible moves
 moveList :: Board -> [(Int, Int, Int, Int)]
@@ -23,7 +22,7 @@ moveList brd
   | otherwise  = caps 
     where 
       empty = [(x, y, fst z, snd z) | x <- [0..7], y <- [0..7], z <- movesFrom x y brd]
-      caps = filter (\(x, y, x2, y2) -> isJust $ pieceAt x2 y2 brd) empty  
+      caps = filter (\(_, _, x2, y2) -> isJust $ pieceAt x2 y2 brd) empty  
 
 {- Data structure encoding minimax tree
  - Root is starting position
@@ -34,21 +33,24 @@ data MinimaxTree = Root (Board) [MinimaxTree]
                  | Partial (Board) [MinimaxTree] (MinimaxTree)
                  | Final (Board) (MinimaxTree)
 
+boardOf :: MinimaxTree -> Board
 boardOf (Root brd _)      = brd
 boardOf (Partial brd _ _) = brd
 boardOf (Final brd _)     = brd
 
+next :: MinimaxTree -> [MinimaxTree]
 next (Root _ nxt)      = nxt
 next (Partial _ nxt _) = nxt
 next _                 = error("Next called on leaf")
 
-fixedMove x y x2 y2 brd = case move' x y x2 y2 brd of
-    Right new_brd -> new_brd
-    Left _        -> error("Invalid move given")
-
 nextBoards :: Board -> [Board]
-nextBoards brd = [(fixedMove x y x2 y2 brd) | (x,y,x2,y2) <- moveList brd]
+nextBoards brd = [(fixedMove x y x2 y2) | (x,y,x2,y2) <- moveList brd]
+    where 
+      fixedMove x y x2 y2 = case move' x y x2 y2 brd of
+          Right new_brd -> new_brd
+          Left _        -> error("Invalid move given")
 
+minimaxFrom' :: MinimaxTree -> Board -> MinimaxTree
 minimaxFrom' parent brd
     | null nextPos  = Final brd parent
     | otherwise     = partial
@@ -67,14 +69,6 @@ fromRoot :: MinimaxTree -> [Board]
 fromRoot (Root brd _)           = brd:[]
 fromRoot (Partial brd _ parent) = brd:(fromRoot parent)
 fromRoot (Final brd parent)     = brd:(fromRoot parent)
-
-displayLayers :: Int -> MinimaxTree -> IO()
-displayLayers n (Final brd _) = putStrLn $ show brd
-displayLayers n mmTree
-  | n == 0 = return ()
-  | otherwise = do putStr . show $ boardOf mmTree
-                   mapM (displayLayers (n-1)) $ next mmTree
-                   putStrLn ""
 
 -- Static evaluation. 100 = win.
 score :: MinimaxTree -> Int
